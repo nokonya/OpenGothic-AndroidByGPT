@@ -383,6 +383,9 @@ void AndroidInput::Controller::bind() {
     Gothic::flushSettings();
     }
   loadHudPlaces();
+  // Preferences are applied once at bind and again only when a setting changes.
+  // Re-reading the full MOBILE section and reapplying pad/control settings every frame is unnecessary.
+  applyPreferences();
 
 #ifdef __ANDROID__
   AndroidApi::setInputHandler([](AInputEvent* event, void* user) {
@@ -616,7 +619,6 @@ bool AndroidInput::Controller::update(Window& window, Mobile::Mode mode) {
   screenW = float(window.w());
   screenH = float(window.h());
   controls.configure(screenW,screenH,mode);
-  applyPreferences();
   if(paused && !controls.settingsVisible()) {
     Gothic::inst().popPause();
     paused = false;
