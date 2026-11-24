@@ -820,7 +820,7 @@ int AndroidInput::Controller::iconFor(const Mobile::Button& b) const {
     case Key::Weapon:     return game ? IconWeapon : IconTransfer;
     case Key::Up:         return game && b.id!="stepforward" ? NoIcon : IconUp;
     case Key::Down:       return game && b.id!="stepback"    ? NoIcon : IconDown;
-    case Key::Enter:      return game ? (b.id=="human" ? IconHuman : IconBack) : IconConfirm;
+    case Key::Enter:      return game ? (b.id=="human" ? IconHuman : b.id=="marvin" ? NoIcon : IconBack) : IconConfirm;
     default:              break;
     }
   return NoIcon;
