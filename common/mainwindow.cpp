@@ -1112,15 +1112,26 @@ void MainWindow::isDialogClosed(bool& ret) {
   ret = !(dialogs.isActive() || document.isActive());
   }
 
+void MainWindow::openMarvinConsole() {
+  if(!Gothic::inst().isMarvinEnabled())
+    return;
+  console.resize(w(),h());
+  console.setFocus(true);
+#ifdef OPENGOTHIC_TOUCH_UI
+  // The touch controller has a built-in keyboard. While Marvin is open, route its text events to the console overlay.
+  androidControls.keyboard(true);
+#endif
+  console.exec();
+#ifdef OPENGOTHIC_TOUCH_UI
+  androidControls.keyboard(false);
+#endif
+  }
+
 template<Tempest::KeyEvent::KeyType k>
 void MainWindow::onMarvinKey() {
   switch(k) {
     case Event::K_F2:
-      if(Gothic::inst().isMarvinEnabled()) {
-        console.resize(w(),h());
-        console.setFocus(true);
-        console.exec();
-        }
+      openMarvinConsole();
       break;
     case Event::K_F3:
       setFullscreen(!SystemApi::isFullscreen(hwnd()));
@@ -1995,6 +2006,10 @@ uint64_t MainWindow::fastForwardDt(uint64_t dt) {
   }
 
 void MainWindow::onMobileAction(int id) {
+  if(id==Mobile::Special::Marvin) {
+    openMarvinConsole();
+    return;
+    }
   if(id==Mobile::Special::Mods) {
     modMenu.open();
     return;
