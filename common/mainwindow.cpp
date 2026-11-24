@@ -898,11 +898,16 @@ void MainWindow::drawTouchBars(Painter& p, Npc& pl) {
   const auto  pref      = AndroidInput::preferences();
   const bool  numbers   = pref.hudNumbers!=0;
   const bool  xp        = pref.hudXp!=0;
-  const auto  hpText    = std::to_string(pl.attribute(ATR_HITPOINTS))+"/"+
-                          std::to_string(pl.attribute(ATR_HITPOINTSMAX));
-  const auto  mpText    = std::to_string(pl.attribute(ATR_MANA))+"/"+std::to_string(pl.attribute(ATR_MANAMAX));
-  const auto  xpText    = std::to_string(pl.experience())+"/"+std::to_string(pl.experienceNext());
+  // Do not format HP/MP/XP strings every frame when their optional labels are disabled.
+  std::string hpText, mpText, xpText;
+  if(numbers) {
+    hpText = std::to_string(pl.attribute(ATR_HITPOINTS))+"/"+std::to_string(pl.attribute(ATR_HITPOINTSMAX));
+    mpText = std::to_string(pl.attribute(ATR_MANA))+"/"+std::to_string(pl.attribute(ATR_MANAMAX));
+    }
+  if(xp)
+    xpText = std::to_string(pl.experience())+"/"+std::to_string(pl.experienceNext());
   auto&       hudFont   = Resources::font(Gothic::interfaceScale(this));
+  const int   textH     = hudFont.textSize(numbers ? hpText : xp ? xpText : "0").h;
   // the text is drawn twice, the dark one is a shadow: it can be read on any background
   auto drawText = [&](const std::string& text, int x, int baseline) {
     hudFont.tinted(Tempest::Color(0.f,0.f,0.f,0.85f)).drawText(p,x+1,baseline+1,text);
@@ -919,7 +924,7 @@ void MainWindow::drawTouchBars(Painter& p, Npc& pl) {
     drawBar(p,barMana,10,yMana,width,mp,AlignLeft);
     // the numbers stand to the right of the bars, the experience under them
     const int bh = barHeight(width);
-    const int th = hudFont.textSize(hpText).h;
+    const int th = textH;
     if(numbers) {
       drawText(hpText,10+width+8,10+(bh+th)/2);
       drawText(mpText,10+width+8,yMana+(bh+th)/2);
@@ -954,7 +959,7 @@ void MainWindow::drawTouchBars(Painter& p, Npc& pl) {
     }
 
   const int bh = barHeight(width);
-  const int th = hudFont.textSize(hpText).h;
+  const int th = textH;
   if(numbers) {
     // centered over the bars (the text is above the frame, not in it)
     const int top = y-bh-2;
