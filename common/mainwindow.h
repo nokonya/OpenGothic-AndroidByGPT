@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <bitset>
 
 #include "camera.h"
@@ -47,6 +48,7 @@
 class MenuRoot;
 class GameSession;
 class Interactive;
+class Item;
 
 class MainWindow : public Tempest::Window {
   public:
@@ -155,7 +157,12 @@ class MainWindow : public Tempest::Window {
 #ifdef OPENGOTHIC_TOUCH_UI
     AndroidInput::Controller   androidControls;
     InventoryRenderer          mobileItems[Resources::MaxFramesInFlight];
-    std::string                mobileItemStamp[Resources::MaxFramesInFlight];
+    struct MobileItemCacheEntry {
+      const Item* item = nullptr;
+      Mobile::Rect rect;
+      };
+    std::array<MobileItemCacheEntry,10> mobileItemStamp[Resources::MaxFramesInFlight];
+    size_t mobileItemCount[Resources::MaxFramesInFlight] = {};
     Tempest::VectorImage       touchLayer;
     Tempest::VectorImage::Mesh touchMesh[Resources::MaxFramesInFlight];
 #endif
