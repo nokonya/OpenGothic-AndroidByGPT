@@ -191,7 +191,7 @@ int nextValue(int setting, int value) {
     case Mobile::SettingRain:
       return value>=3 ? 0 : value+1;
     case Mobile::SettingHudOpacity:
-      return value>=100 ? 30 : value+15;
+      return value>=100 ? 30 : value>=90 ? 100 : value+15;
     }
   return value;
   }
