@@ -136,6 +136,7 @@ class MainWindow : public Tempest::Window {
 
     template<Tempest::KeyEvent::KeyType k>
     void     onMarvinKey();
+    void     openMarvinConsole();
 
     Camera::Mode solveCameraMode() const;
 
