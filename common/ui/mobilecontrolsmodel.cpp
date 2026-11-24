@@ -452,6 +452,7 @@ void Controls::buildGame(const Anchor&) {
     icon("speed",   left(244),  top(36), 50, "SPEED",     Key::Enter, false, Special::Speed);
   icon("log",       right(124), top(36), 50, "LOG",       Key::Log);
   icon("map",       right(62),  top(36), 50, "MAP",       Key::Map);
+  icon("marvin",    right(186), top(36), 50, "MARVIN",    Key::Enter, false, Special::Marvin);
 
   if(dead && !editing) {
     // the player has died: one button loads the newest save
