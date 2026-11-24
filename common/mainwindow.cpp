@@ -2007,7 +2007,9 @@ uint64_t MainWindow::fastForwardDt(uint64_t dt) {
 
 void MainWindow::onMobileAction(int id) {
   if(id==Mobile::Special::Marvin) {
-    openMarvinConsole();
+    if(Gothic::inst().isMarvinEnabled())
+      openMarvinConsole(); else
+      Gothic::inst().onPrint("Marvin mode is disabled");
     return;
     }
   if(id==Mobile::Special::Mods) {
