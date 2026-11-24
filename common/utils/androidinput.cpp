@@ -862,13 +862,14 @@ void AndroidInput::Controller::paintButton(Painter& p, Font& font, size_t index)
       }
 
     // Plain text button with a border
-    fill(p,r,active ? Color(0.85f,0.7f,0.42f,0.95f) : Color(0.5f,0.48f,0.42f,0.7f));
+    const float opacity = game ? hudOpacity : 1.f;
+    fill(p,r,active ? Color(0.85f,0.7f,0.42f,0.95f*opacity) : Color(0.5f,0.48f,0.42f,0.7f*opacity));
     const float border = 1.5f*s;
     r.x += border;
     r.y += border;
     r.w -= 2*border;
     r.h -= 2*border;
-    fill(p,r,active ? Color(0.35f,0.22f,0.07f,0.9f) : Color(0.035f,0.03f,0.025f,0.65f));
+    fill(p,r,active ? Color(0.35f,0.22f,0.07f,0.9f*opacity) : Color(0.035f,0.03f,0.025f,0.65f*opacity));
 
     setFontSize(p,font,(controls.settingsVisible() ? 18.f : game ? 11.f : 16.f)*s);
     const int setting = b.special-Mobile::Special::FirstSetting;
