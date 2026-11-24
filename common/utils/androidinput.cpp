@@ -955,7 +955,7 @@ void AndroidInput::Controller::paintStick(Painter& p) {
     // Arrows of the directions
     const float reach = r.w*0.40f;
     const float a     = r.w*0.028f;
-    p.setBrush(Brush(Color(1.f,1.f,1.f,0.5f)));
+    p.setBrush(Brush(Color(1.f,1.f,1.f,0.5f*hudOpacity)));
     p.drawTriangle(cx,cy-reach-a,0.f,0.f, cx-a*1.3f,cy-reach+a,0.f,0.f, cx+a*1.3f,cy-reach+a,0.f,0.f);
     p.drawTriangle(cx,cy+reach+a,0.f,0.f, cx+a*1.3f,cy+reach-a,0.f,0.f, cx-a*1.3f,cy+reach-a,0.f,0.f);
     p.drawTriangle(cx-reach-a,cy,0.f,0.f, cx-reach+a,cy+a*1.3f,0.f,0.f, cx-reach+a,cy-a*1.3f,0.f,0.f);
