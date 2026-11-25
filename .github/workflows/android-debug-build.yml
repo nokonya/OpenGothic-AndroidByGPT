@@ -51,7 +51,7 @@ jobs:
 
       - name: Enable AndroidX for generated APK project
         run: |
-          printf '\\nandroid.useAndroidX=true\\n' >> build/android/OpenGothic-apk/gradle.properties
+          printf '\nandroid.useAndroidX=true\n' >> build/android/OpenGothic-apk/gradle.properties
 
       - name: Build APK
         run: |
