@@ -325,7 +325,7 @@ void Controls::buildSettings(const Anchor& a) {
   static const char* labels[SettingCount] = {
     "Button size", "3D resolution", "Shadow quality", "SSAO effects",
     "FPS limit", "Joystick deadzone", "Camera sensitivity", "Vibration", "GUI scale",
-    "Fast forward", "HP/Mana numbers", "XP counter", "Step buttons", "Auto lock", "Water reflections", "Gamepad movement", "Rain"
+    "Fast forward", "HP/Mana numbers", "XP counter", "Step buttons", "Auto lock", "Water reflections", "Gamepad movement", "Rain", "HUD opacity"
     };
   // The speed is not a part of the vanilla game: its row is there only when a mod has asked for it
   std::vector<int> rows;
@@ -452,6 +452,7 @@ void Controls::buildGame(const Anchor&) {
     icon("speed",   left(244),  top(36), 50, "SPEED",     Key::Enter, false, Special::Speed);
   icon("log",       right(124), top(36), 50, "LOG",       Key::Log);
   icon("map",       right(62),  top(36), 50, "MAP",       Key::Map);
+  icon("marvin",    right(186), top(36), 50, "MARVIN",    Key::Enter, false, Special::Marvin);
 
   if(dead && !editing) {
     // the player has died: one button loads the newest save

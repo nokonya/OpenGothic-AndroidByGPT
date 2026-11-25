@@ -60,7 +60,8 @@ namespace Special {
     FirstSetting  = 11,
     QuickSave     = 30,   // saves the game to the quick save slot
     LoadSave      = 31,   // the player is dead: loads the newest save (above the settings, below the categories)
-    FirstCategory = 32
+    FirstCategory = 32,
+    Marvin        = 41    // opens the Marvin developer console
     };
   }
 
@@ -82,6 +83,7 @@ enum Setting : int {
   SettingReflections,
   SettingPadStyle,
   SettingRain,
+  SettingHudOpacity,
   SettingCount
   };
 
@@ -109,7 +111,7 @@ inline float hotbarSlot(float buttons) {
 /// Names of the buttons of the HUD that can be moved and switched off (see Controls::hudPlace)
 constexpr const char* HudIds[] = {
   "menu", "character", "speed", "log", "map", "sneak", "walk", "stepleft", "stepright", "stepforward", "stepback",
-  "action", "hitleft", "hitright", "block", "jump", "inventory", "target", "spells", "weapon", "quicksave", "human"
+  "action", "hitleft", "hitright", "block", "jump", "inventory", "target", "spells", "weapon", "quicksave", "human", "marvin"
   };
 constexpr int HudIdCount = int(sizeof(HudIds)/sizeof(HudIds[0]));
 

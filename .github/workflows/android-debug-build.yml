@@ -1,0 +1,66 @@
+name: Android debug build
+
+on:
+  push:
+    branches: [gpt/android-debug-console]
+  pull_request:
+    branches: [touch-ui]
+
+permissions:
+  contents: read
+
+jobs:
+  android-arm64:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v5
+        with:
+          gradle-version: '8.9'
+
+      - uses: ./.github/actions/setup-vulkan
+        with:
+          os: Linux
+          vk-sdk: '1.4.357.0'
+
+      - name: Install Android dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y glslang-tools ninja-build
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0" "ndk;27.0.12077973" "cmake;3.22.1"
+
+      - name: Generate build version
+        run: |
+          echo '#pragma once' > game/build.h
+          echo 'static const char* appBuild = "OpenGothic debug";' >> game/build.h
+
+      - name: Configure
+        run: |
+          "$ANDROID_HOME/cmake/3.22.1/bin/cmake" -S . -B build/android -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE="$ANDROID_HOME/ndk/27.0.12077973/build/cmake/android.toolchain.cmake" \
+            -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo
+
+      - name: Enable AndroidX for generated APK project
+        run: |
+          printf '\nandroid.useAndroidX=true\n' >> build/android/OpenGothic-apk/gradle.properties
+
+      - name: Build APK
+        run: |
+          "$ANDROID_HOME/cmake/3.22.1/bin/cmake" --build build/android --target OpenGothic-apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenGothic-Android-arm64
+          path: build/android/**/*.apk
+          if-no-files-found: error
+          retention-days: 14

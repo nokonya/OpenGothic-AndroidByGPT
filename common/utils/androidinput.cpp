@@ -51,7 +51,7 @@ const char* const IconFiles[AndroidInput::IconCount] = {
 
 const char* const SettingNames[Mobile::SettingCount] = {
   "buttons", "resolution", "shadows", "effects", "fps", "deadzone", "sensitivity", "vibration", "gui",
-  "speed", "hudnumbers", "hudxp", "strafe", "autolock", "reflections", "padstyle", "rain"
+  "speed", "hudnumbers", "hudxp", "strafe", "autolock", "reflections", "padstyle", "rain", "hudopacity"
   };
 
 // Gives access to the dispatch functions of SystemApi
@@ -190,6 +190,8 @@ int nextValue(int setting, int value) {
       return value ? 0 : 1;
     case Mobile::SettingRain:
       return value>=3 ? 0 : value+1;
+    case Mobile::SettingHudOpacity:
+      return value>=100 ? 30 : value>=90 ? 100 : value+15;
     }
   return value;
   }
@@ -220,7 +222,7 @@ std::string settingText(int setting, const std::string& label) {
   std::string ret = label+"   "+std::to_string(value);
   const bool percent = setting==Mobile::SettingButtons || setting==Mobile::SettingResolution ||
                        setting==Mobile::SettingDeadzone || setting==Mobile::SettingSensitivity ||
-                       setting==Mobile::SettingGui;
+                       setting==Mobile::SettingGui || setting==Mobile::SettingHudOpacity;
   if(percent)
     ret += "%";
   return ret;
@@ -317,6 +319,8 @@ AndroidInput::Preferences AndroidInput::preferences() {
     ret.padStyle = Gothic::settingsGetI(Section,SettingNames[Mobile::SettingPadStyle])!=0 ? 1 : 0;
   if(Gothic::settingsGetI(Section,"version")>=10)
     ret.rain = std::clamp(Gothic::settingsGetI(Section,SettingNames[Mobile::SettingRain]),0,3);
+  if(Gothic::settingsGetI(Section,"version")>=11)
+    ret.hudOpacity = std::clamp(Gothic::settingsGetI(Section,SettingNames[Mobile::SettingHudOpacity]),30,100);
   return ret;
   }
 
@@ -340,10 +344,11 @@ void AndroidInput::Controller::bind() {
     Gothic::settingsSetI(Section,SettingNames[Mobile::SettingReflections],def.reflections);
     Gothic::settingsSetI(Section,SettingNames[Mobile::SettingPadStyle],   def.padStyle);
     Gothic::settingsSetI(Section,SettingNames[Mobile::SettingRain],       def.rain);
-    Gothic::settingsSetI(Section,"version",10);
+    Gothic::settingsSetI(Section,SettingNames[Mobile::SettingHudOpacity], def.hudOpacity);
+    Gothic::settingsSetI(Section,"version",11);
     Gothic::flushSettings();
     } else
-  if(Gothic::settingsGetI(Section,"version")<10) {
+  if(Gothic::settingsGetI(Section,"version")<11) {
     // settings saved before the vibration, the scale of the interface, the fast forward, the side steps and the auto lock were added
     const Preferences def;
     const int version = Gothic::settingsGetI(Section,"version");
@@ -372,10 +377,15 @@ void AndroidInput::Controller::bind() {
     // the rain of the original game is on (the normal one)
     if(version<10)
       Gothic::settingsSetI(Section,SettingNames[Mobile::SettingRain],def.rain);
-    Gothic::settingsSetI(Section,"version",10);
+    if(version<11)
+      Gothic::settingsSetI(Section,SettingNames[Mobile::SettingHudOpacity],def.hudOpacity);
+    Gothic::settingsSetI(Section,"version",11);
     Gothic::flushSettings();
     }
   loadHudPlaces();
+  // Preferences are applied once at bind and again only when a setting changes.
+  // Re-reading the full MOBILE section and reapplying pad/control settings every frame is unnecessary.
+  applyPreferences();
 
 #ifdef __ANDROID__
   AndroidApi::setInputHandler([](AInputEvent* event, void* user) {
@@ -559,6 +569,7 @@ void AndroidInput::Controller::physical(Mobile::Key key, bool down) {
 void AndroidInput::Controller::applyPreferences() {
   const auto pref = preferences();
   controls.preferences(float(pref.buttons)/100.f,float(pref.deadzone)/100.f,float(pref.sensitivity)/100.f);
+  hudOpacity = float(pref.hudOpacity)/100.f;
   padSensitivity = float(pref.sensitivity)/100.f;
   pad.style(pref.padStyle!=0 ? Mobile::Gamepad::Style::Touch : Mobile::Gamepad::Style::Diagonal);
   // the game is vanilla: the fast forward is on the HUD and in the settings only when a mod has asked for it
@@ -608,7 +619,6 @@ bool AndroidInput::Controller::update(Window& window, Mobile::Mode mode) {
   screenW = float(window.w());
   screenH = float(window.h());
   controls.configure(screenW,screenH,mode);
-  applyPreferences();
   if(paused && !controls.settingsVisible()) {
     Gothic::inst().popPause();
     paused = false;
@@ -812,7 +822,7 @@ int AndroidInput::Controller::iconFor(const Mobile::Button& b) const {
     case Key::Weapon:     return game ? IconWeapon : IconTransfer;
     case Key::Up:         return game && b.id!="stepforward" ? NoIcon : IconUp;
     case Key::Down:       return game && b.id!="stepback"    ? NoIcon : IconDown;
-    case Key::Enter:      return game ? (b.id=="human" ? IconHuman : IconBack) : IconConfirm;
+    case Key::Enter:      return game ? (b.id=="human" ? IconHuman : b.id=="marvin" ? NoIcon : IconBack) : IconConfirm;
     default:              break;
     }
   return NoIcon;
@@ -827,9 +837,9 @@ void AndroidInput::Controller::paintHotbarSlot(Painter& p, Font&, size_t index) 
   const auto& b = controls.buttons()[index];
   const auto& r = b.rect;
 
-  fill(p,r,Color(0.008f,0.012f,0.018f,0.88f));
+  fill(p,r,Color(0.008f,0.012f,0.018f,0.88f*hudOpacity));
   const bool selected = hud.active==int(b.key)-int(Key::One);
-  paintSprite(p,controls.pressed(index) || selected ? IconInvSlotSelected : IconInvSlot,r,b.enabled ? 0.95f : 0.65f);
+  paintSprite(p,controls.pressed(index) || selected ? IconInvSlotSelected : IconInvSlot,r,(b.enabled ? 0.95f : 0.65f)*hudOpacity);
   }
 
 void AndroidInput::Controller::paintButton(Painter& p, Font& font, size_t index) {
@@ -854,13 +864,14 @@ void AndroidInput::Controller::paintButton(Painter& p, Font& font, size_t index)
       }
 
     // Plain text button with a border
-    fill(p,r,active ? Color(0.85f,0.7f,0.42f,0.95f) : Color(0.5f,0.48f,0.42f,0.7f));
+    const float opacity = game ? hudOpacity : 1.f;
+    fill(p,r,active ? Color(0.85f,0.7f,0.42f,0.95f*opacity) : Color(0.5f,0.48f,0.42f,0.7f*opacity));
     const float border = 1.5f*s;
     r.x += border;
     r.y += border;
     r.w -= 2*border;
     r.h -= 2*border;
-    fill(p,r,active ? Color(0.35f,0.22f,0.07f,0.9f) : Color(0.035f,0.03f,0.025f,0.65f));
+    fill(p,r,active ? Color(0.35f,0.22f,0.07f,0.9f*opacity) : Color(0.035f,0.03f,0.025f,0.65f*opacity));
 
     setFontSize(p,font,(controls.settingsVisible() ? 18.f : game ? 11.f : 16.f)*s);
     const int setting = b.special-Mobile::Special::FirstSetting;
@@ -879,9 +890,10 @@ void AndroidInput::Controller::paintButton(Painter& p, Font& font, size_t index)
                                 b.key==Key::Map || b.key==Key::Inventory);
   // a button that is switched off is only a ghost in the editor of the HUD
   const float ghost = b.dimmed ? 0.3f : 1.f;
-  paintSprite(p,active ? IconButtonPressed : IconButton,{cx-rad,cy-rad,rad*2,rad*2},ghost);
+  const float opacity = game ? hudOpacity : 1.f;
+  paintSprite(p,active ? IconButtonPressed : IconButton,{cx-rad,cy-rad,rad*2,rad*2},ghost*opacity);
 
-  const float alpha = (!b.enabled ? 0.28f : active ? 1.f : 0.9f)*ghost;
+  const float alpha = (!b.enabled ? 0.28f : active ? 1.f : 0.9f)*ghost*opacity;
   p.setBrush(Brush(icons[size_t(icon)],Color(0.88f,0.92f,0.95f,alpha)));
   const auto& uv     = ink[size_t(icon)];
   const float size   = rad*(utility ? 1.35f : 1.32f);
@@ -937,7 +949,7 @@ void AndroidInput::Controller::paintStick(Painter& p) {
   const float cx     = controls.stickCenterX();
   const float cy     = controls.stickCenterY();
   const bool  active = controls.stickActive();
-  const float alpha  = active ? 0.9f : 0.12f;   // only a hint of the place until the finger is down
+  const float alpha  = (active ? 0.9f : 0.12f)*hudOpacity;   // only a hint of the place until the finger is down
 
   paintSprite(p,IconJoystickBase,{cx-r.w/2,cy-r.h/2,r.w,r.h},alpha);
 
@@ -945,7 +957,7 @@ void AndroidInput::Controller::paintStick(Painter& p) {
     // Arrows of the directions
     const float reach = r.w*0.40f;
     const float a     = r.w*0.028f;
-    p.setBrush(Brush(Color(1.f,1.f,1.f,0.5f)));
+    p.setBrush(Brush(Color(1.f,1.f,1.f,0.5f*hudOpacity)));
     p.drawTriangle(cx,cy-reach-a,0.f,0.f, cx-a*1.3f,cy-reach+a,0.f,0.f, cx+a*1.3f,cy-reach+a,0.f,0.f);
     p.drawTriangle(cx,cy+reach+a,0.f,0.f, cx+a*1.3f,cy+reach-a,0.f,0.f, cx-a*1.3f,cy+reach-a,0.f,0.f);
     p.drawTriangle(cx-reach-a,cy,0.f,0.f, cx-reach+a,cy+a*1.3f,0.f,0.f, cx-reach+a,cy-a*1.3f,0.f,0.f);
@@ -974,7 +986,7 @@ void AndroidInput::Controller::paint(PaintEvent& event) {
     setFontSize(p,font,15*controls.unit());
     const float s = controls.unit();
     const Mobile::Rect r = {screenW*0.25f,screenH*0.5f-92*s,screenW*0.5f,60*s};
-    drawCentered(p,font,r,"Drag a button to move it, tap it to hide or show it");
+    drawCentered(p,font,r,"Drag to move; tap to resize; hold to hide/show. HUD opacity is in Settings.");
     }
   if(controls.settingsVisible())
     return;

@@ -265,7 +265,7 @@ endif()
 
 if(ANDROID)
   add_android_apk(OpenGothic-apk
-    PACKAGE_NAME org.opengothic.mobile
+    PACKAGE_NAME org.opengothic.mobile.gptfork
     # The version that the launcher compares with the release of the repository (UpdateCheck.java); the code grows with every release
     VERSION_CODE 95
     VERSION_NAME "0.9.5"

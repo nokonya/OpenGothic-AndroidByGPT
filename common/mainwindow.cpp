@@ -898,11 +898,16 @@ void MainWindow::drawTouchBars(Painter& p, Npc& pl) {
   const auto  pref      = AndroidInput::preferences();
   const bool  numbers   = pref.hudNumbers!=0;
   const bool  xp        = pref.hudXp!=0;
-  const auto  hpText    = std::to_string(pl.attribute(ATR_HITPOINTS))+"/"+
-                          std::to_string(pl.attribute(ATR_HITPOINTSMAX));
-  const auto  mpText    = std::to_string(pl.attribute(ATR_MANA))+"/"+std::to_string(pl.attribute(ATR_MANAMAX));
-  const auto  xpText    = std::to_string(pl.experience())+"/"+std::to_string(pl.experienceNext());
+  // Do not format HP/MP/XP strings every frame when their optional labels are disabled.
+  std::string hpText, mpText, xpText;
+  if(numbers) {
+    hpText = std::to_string(pl.attribute(ATR_HITPOINTS))+"/"+std::to_string(pl.attribute(ATR_HITPOINTSMAX));
+    mpText = std::to_string(pl.attribute(ATR_MANA))+"/"+std::to_string(pl.attribute(ATR_MANAMAX));
+    }
+  if(xp)
+    xpText = std::to_string(pl.experience())+"/"+std::to_string(pl.experienceNext());
   auto&       hudFont   = Resources::font(Gothic::interfaceScale(this));
+  const int   textH     = hudFont.textSize(numbers ? hpText : xp ? xpText : "0").h;
   // the text is drawn twice, the dark one is a shadow: it can be read on any background
   auto drawText = [&](const std::string& text, int x, int baseline) {
     hudFont.tinted(Tempest::Color(0.f,0.f,0.f,0.85f)).drawText(p,x+1,baseline+1,text);
@@ -919,7 +924,7 @@ void MainWindow::drawTouchBars(Painter& p, Npc& pl) {
     drawBar(p,barMana,10,yMana,width,mp,AlignLeft);
     // the numbers stand to the right of the bars, the experience under them
     const int bh = barHeight(width);
-    const int th = hudFont.textSize(hpText).h;
+    const int th = textH;
     if(numbers) {
       drawText(hpText,10+width+8,10+(bh+th)/2);
       drawText(mpText,10+width+8,yMana+(bh+th)/2);
@@ -954,7 +959,7 @@ void MainWindow::drawTouchBars(Painter& p, Npc& pl) {
     }
 
   const int bh = barHeight(width);
-  const int th = hudFont.textSize(hpText).h;
+  const int th = textH;
   if(numbers) {
     // centered over the bars (the text is above the frame, not in it)
     const int top = y-bh-2;
@@ -1112,15 +1117,26 @@ void MainWindow::isDialogClosed(bool& ret) {
   ret = !(dialogs.isActive() || document.isActive());
   }
 
+void MainWindow::openMarvinConsole() {
+  if(!Gothic::inst().isMarvinEnabled())
+    return;
+  console.resize(w(),h());
+  console.setFocus(true);
+#ifdef OPENGOTHIC_TOUCH_UI
+  // The touch controller has a built-in keyboard. While Marvin is open, route its text events to the console overlay.
+  androidControls.keyboard(true);
+#endif
+  console.exec();
+#ifdef OPENGOTHIC_TOUCH_UI
+  androidControls.keyboard(false);
+#endif
+  }
+
 template<Tempest::KeyEvent::KeyType k>
 void MainWindow::onMarvinKey() {
   switch(k) {
     case Event::K_F2:
-      if(Gothic::inst().isMarvinEnabled()) {
-        console.resize(w(),h());
-        console.setFocus(true);
-        console.exec();
-        }
+      openMarvinConsole();
       break;
     case Event::K_F3:
       setFullscreen(!SystemApi::isFullscreen(hwnd()));
@@ -1995,6 +2011,12 @@ uint64_t MainWindow::fastForwardDt(uint64_t dt) {
   }
 
 void MainWindow::onMobileAction(int id) {
+  if(id==Mobile::Special::Marvin) {
+    if(Gothic::inst().isMarvinEnabled())
+      openMarvinConsole(); else
+      Gothic::inst().onPrint("Marvin mode is disabled");
+    return;
+    }
   if(id==Mobile::Special::Mods) {
     modMenu.open();
     return;
@@ -2172,12 +2194,8 @@ void MainWindow::updateMobileAvailability() {
 
 /// Prepares the touch HUD for rendering: status bars, hotbar models and the controls themselves
 void MainWindow::updateMobileOverlay() {
-  struct HotbarItem {
-    const Item*  item;
-    Mobile::Rect rect;
-    };
-  std::vector<HotbarItem> hotbar;
-  std::string             stamp;
+  std::array<MobileItemCacheEntry,10> hotbar{};
+  size_t hotbarCount = 0;
 
   auto& hud = androidControls.hud;
   hud = {};
@@ -2224,21 +2242,28 @@ void MainWindow::updateMobileOverlay() {
         continue;
       if(item==pl->activeWeapon())
         hud.active = index;
-      hotbar.push_back({item,b.rect});
-      stamp += std::string(item->handle().visual)+":"+std::to_string(index)+":"+
-               std::to_string(b.rect.x)+":"+std::to_string(b.rect.y)+":"+
-               std::to_string(b.rect.w)+":"+std::to_string(b.rect.h)+";";
+      if(hotbarCount<hotbar.size())
+        hotbar[hotbarCount++] = {item,b.rect};
       }
     }
 
-  // Models are cached, and rebuilt only when the hotbar changes
-  if(stamp!=mobileItemStamp[cmdId]) {
+  // Compare the small fixed hotbar directly: avoid allocating and formatting a string every frame.
+  bool hotbarChanged = hotbarCount!=mobileItemCount[cmdId];
+  for(size_t i=0; !hotbarChanged && i<hotbarCount; ++i) {
+    const auto& a = hotbar[i];
+    const auto& b = mobileItemStamp[cmdId][i];
+    hotbarChanged = a.item!=b.item || a.rect.x!=b.rect.x || a.rect.y!=b.rect.y ||
+                    a.rect.w!=b.rect.w || a.rect.h!=b.rect.h;
+    }
+  if(hotbarChanged) {
     mobileItems[cmdId].reset();
-    for(const auto& slot:hotbar) {
+    for(size_t i=0; i<hotbarCount; ++i) {
+      const auto& slot = hotbar[i];
       const auto& r = slot.rect;
-      mobileItems[cmdId].drawItem(int(r.x+r.w*0.12f),int(r.y+r.h*0.22f),int(r.w*0.76f),int(r.h*0.66f),*slot.item);
+      mobileItems[cmdId].drawItem(int(r.x+r.w*0.12f),int(r.y+r.h*0.22f),int(r.w*76.f/100.f),int(r.h*66.f/100.f),*slot.item);
       }
-    mobileItemStamp[cmdId] = std::move(stamp);
+    mobileItemStamp[cmdId] = hotbar;
+    mobileItemCount[cmdId] = hotbarCount;
     }
 
   touchLayer.clear();
