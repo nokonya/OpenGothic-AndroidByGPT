@@ -51,8 +51,16 @@ jobs:
 
       - name: Enable AndroidX for generated APK project
         run: |
-          printf '\nandroid.useAndroidX=true\n' >> build/android/OpenGothic-apk/gradle.properties
+          printf '\\nandroid.useAndroidX=true\\n' >> build/android/OpenGothic-apk/gradle.properties
 
       - name: Build APK
         run: |
           "$ANDROID_HOME/cmake/3.22.1/bin/cmake" --build build/android --target OpenGothic-apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenGothic-Android-arm64
+          path: build/android/**/*.apk
+          if-no-files-found: error
+          retention-days: 14
